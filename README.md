@@ -152,13 +152,13 @@ writeFileSync('sample.svg', svg);
 
 ## Acknowledgements
 
-This project is greatly inspired by [@drgrice1/tikzjax](https://github.com/drgrice1/tikzjax) and [@artisticat1/tikzjax](https://github.com/artisticat1/tikzjax/tree/output-single-file).
+This project is greatly inspired by [node-tikzjax](https://github.com/prinsss/node-tikzjax) and [@drgrice1/tikzjax](https://github.com/drgrice1/tikzjax) and [@artisticat1/tikzjax](https://github.com/artisticat1/tikzjax/tree/output-single-file).
 
 This port would not be possible without the original [tikzjax](https://github.com/kisonecat/tikzjax) project.
 
 Prebuilt WebAssembly binaries and supporting files are [downloaded](download.sh) from [artisticat1/tikzjax#output-single-file](https://github.com/artisticat1/tikzjax/tree/output-single-file).
 
-A fork of [drgrice1/dvi2html](https://github.com/drgrice1/dvi2html) is used to convert DVI to SVG.
+The [drgrice1/dvi2html](https://github.com/drgrice1/dvi2html) is used to convert DVI to SVG.
 
 The BaKoMa fonts shipped with this package are licensed under the [BaKoMa Fonts Licence](css/bakoma/LICENCE).
 
@@ -166,6 +166,6 @@ Thanks to all the authors for their great work!
 
 ## License
 
-[LaTeX Project Public License v1.3c](LICENSE)
+[LaTeX Project Public License v1.3c](LATEX-LICENSE)
 
 [MIT](LICENSE) © 2025 [Jhuix](mailto:jhuix0117@gmail.com) (Hui Jin)
