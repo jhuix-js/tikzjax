@@ -35,7 +35,7 @@
     }
   },
   "scripts": {
-    "build": "npm run build:web:min && npm run build:lib",
+    "build": "npm run format && npm run build:web:min && npm run build:lib",
     "build:lib": "tsc --build --clean && tsc",
     "build:web": "node esbuild.js",
     "build:web:min": "node esbuild.js --omit=dev",
