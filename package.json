@@ -46,7 +46,10 @@
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "package": "npm run build",
     "demo": "npx tsx demo/index.ts",
-    "format": "prettier ./src --log-level warn --write"
+    "format": "prettier ./src ./*.js ./*.mjs --log-level warn --write",
+    "gen-tex-files": "node genTexFiles.js",
+    "gen-tex-files-json": "node genTexFilesJson.js",
+    "install-fonts": "node installFonts.mjs"
   },
   "dependencies": {
     "@drgrice1/dvi2html": "^0.0.7-beta4",
@@ -59,9 +62,12 @@
     "@types/node": "^25.0.1",
     "@types/pako": "^2.0.4",
     "@types/tar-fs": "^2.0.4",
+    "decompress": "^4.2.1",
     "esbuild": "0.27.1",
     "esbuild-node-builtins": "^0.1.0",
     "esbuild-plugin-polyfill-node": "^0.3.0",
+    "follow-redirects": "^1.15.11",
+    "fonteditor-core": "^2.6.3",
     "prettier": "^3.7.4",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"

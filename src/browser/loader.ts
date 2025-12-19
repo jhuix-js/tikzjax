@@ -52,14 +52,15 @@ async function extractTexFilesToMemory() {
   const extract = tar.extract();
   // listen for 'entry' event to process each file
   extract.on('entry', (header, stream, next) => {
-    if (header.name === './') {
+    if (header.name === './' || header.name === '.') {
       // process next file
       next();
       return;
     }
 
+    const filename = header.name.startsWith('./') ? header.name.substring(2) : header.name;
     // generate file path in memfs
-    const filePath = `/tex_files/${header.name.substring(2)}`;
+    const filePath = `/tex_files/${filename}`;
     const dirPath = filePath.split('/').slice(0, -1).join('/');
     // create directory if needed
     if (dirPath) fs.mkdirSync(dirPath, { recursive: true });

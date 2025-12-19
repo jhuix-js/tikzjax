@@ -18,14 +18,14 @@ export async function dvi2svg(dvi: Uint8Array, options: SvgOptions = {}) {
     return;
   }
 
-  await dvi2html(
-    streamBuffer(),
-    new Writable({
-      write(chunk) {
-        html += chunk.toString();
-      },
-    }),
-  );
+  const page = new Writable({
+    write(chunk, _encoding, callback) {
+      html = html + chunk.toString();
+      callback();
+    },
+  });
+
+  await dvi2html(streamBuffer(), page);
 
   // {
   //   write: (chunk, encodeding) : boolean => {

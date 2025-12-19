@@ -1,33 +1,31 @@
 // This file is modified from the original source:
-// https://github.com/artisticat1/tikzjax/blob/output-single-file/src/library.js
-// https://github.com/kisonecat/tikzjax/blob/master/src/library.js
+// https://github.com/drgrice1/tikzjax/master/src/library.js
 // which is licensed under the LaTeX Project Public License v1.3c:
 // https://github.com/jhuix-js/tikzjax/blob/master/LATEX-LICENSE.md
-
-import { Buffer } from 'buffer';
 import { tfmData } from '@drgrice1/dvi2html';
+import { Buffer } from 'buffer';
 
-var filesystem = {};
-var files = [];
-var showConsole = false;
-var consoleBuffer = '';
-var memory = null;
-var inputBuffer = null;
-var callback = null;
+let filesystem = {};
+let files = [];
+let showConsole = false;
+let consoleBuffer = '';
+let memory = null;
+let inputBuffer = null;
+let callback = null;
 
 let wasmExports = null;
 let view = null;
 let fileLoader = null;
-var finished = null;
+let finished = null;
 
-export var pages = 1100;
+export const pages = 2500;
 
 let DATA_ADDR = (pages - 100) * 1024 * 64;
 let END_ADDR = pages * 1024 * 64;
 let windingDepth = 0;
 let sleeping = false;
 
-function startUnwind() {
+const startUnwind = () => {
   if (view) {
     view[DATA_ADDR >> 2] = DATA_ADDR + 8;
     view[(DATA_ADDR + 4) >> 2] = END_ADDR;
@@ -35,22 +33,22 @@ function startUnwind() {
 
   wasmExports.asyncify_start_unwind(DATA_ADDR);
   windingDepth = windingDepth + 1;
-}
+};
 
-function startRewind() {
+const startRewind = () => {
   wasmExports.asyncify_start_rewind(DATA_ADDR);
   wasmExports.main();
-}
+};
 
-function stopRewind() {
+const stopRewind = () => {
   windingDepth = windingDepth - 1;
   wasmExports.asyncify_stop_rewind();
-}
+};
 
-function deferredPromise() {
+const deferredPromise = () => {
   let _resolve, _reject;
 
-  let promise = new Promise((resolve, reject) => {
+  const promise = new Promise((resolve, reject) => {
     _resolve = resolve;
     _reject = reject;
   });
@@ -58,9 +56,9 @@ function deferredPromise() {
   promise.reject = _reject;
 
   return promise;
-}
+};
 
-export function deleteEverything() {
+export const deleteEverything = () => {
   files = [];
   filesystem = {};
   memory = null;
@@ -71,24 +69,24 @@ export function deleteEverything() {
   wasmExports = null;
   view = null;
   sleeping = false;
-}
+};
 
-export function writeFileSync(filename, buffer) {
+export const writeFileSync = (filename, buffer) => {
   filesystem[filename] = buffer;
-}
+};
 
-export function readFileSync(filename) {
-  for (let f of files) {
+export const readFileSync = (filename) => {
+  for (const f of files) {
     if (f.filename == filename) {
       return f.content.slice(0, f.position);
     }
   }
 
   throw Error(`Could not find file ${filename}`);
-}
+};
 
-function openSync(filename, mode) {
-  let initialSleepState = sleeping;
+const openSync = (filename, mode) => {
+  const initialSleepState = sleeping;
   if (sleeping) {
     stopRewind();
     sleeping = false;
@@ -104,14 +102,21 @@ function openSync(filename, mode) {
     // If this file has been opened before without an error, that means it was written to.
     // In that case assume the file can now be opened, so fall through and create a fake file below.
     // Otherwise attempt to find it.
-    let descriptor = files.findIndex((element) => element.filename == filename && !element.erstat);
+    const descriptor = files.findIndex(
+      (element) => element.filename == filename && !element.erstat,
+    );
     if (descriptor == -1) {
-      if (initialSleepState || filename.match(/\.(aux|log|dvi)$/)) {
+      if (
+        initialSleepState ||
+        filename.startsWith('TeXinputs:') ||
+        filename.match(/\.(aux|log|dvi)$/)
+      ) {
         // If we are returning from sleep and the file is still not in the filesystem,
         // or it is an aux, log, or dvi file, then report it as not found.
         files.push({
           filename: filename,
-          erstat: 1,
+          erstat: /\.(aux|log|dvi|tex|sty|def|cls)$/.test(filename) ? 1 : 0,
+          eof: true,
         });
         return files.length - 1;
       } else {
@@ -119,13 +124,26 @@ function openSync(filename, mode) {
         startUnwind();
         sleeping = true;
         setTimeout(async () => {
-          // Attempt to load the file.
+          // Attempt to load the file. The file is first searched for in the package's tex_files directory.
+          // If it isn't found there then try to load it directly assuming it is a URL. In this case it is
+          // also assumed that the file is not a gzip compressed file.
+          const filepath = `tex_files/${filename}`;
           try {
-            // PATCHED:
-            // let data = await fileLoader(`tex_files/${filename}.gz`);
-            let data = await fileLoader(`/tex_files/${filename}`);
+            const data = await fileLoader(filepath);
             filesystem[filename] = data;
-          } catch (e) {}
+          } catch {
+            try {
+              const response = await fetch(filepath);
+              if (response.ok) {
+                const data = await response.text();
+                filesystem[filename] = data;
+              } else {
+                throw new Error(`Unable to load ${filename}.`);
+              }
+            } catch {
+              /* ignore */
+            }
+          }
           startRewind();
         }, 0);
         return -1;
@@ -144,27 +162,27 @@ function openSync(filename, mode) {
   });
 
   return files.length - 1;
-}
+};
 
-function closeSync(fd) {
+const closeSync = (_fd) => {
   // ignore this.
-}
+};
 
-function writeSync(file, buffer, pointer, length) {
+const writeSync = (file, buffer, pointer, length) => {
   if (pointer === undefined) pointer = 0;
   if (length === undefined) length = buffer.length - pointer;
 
   while (length > file.content.length - file.position) {
-    let b = new Uint8Array(1 + file.content.length * 2);
+    const b = new Uint8Array(1 + file.content.length * 2);
     b.set(file.content);
     file.content = b;
   }
 
   file.content.subarray(file.position).set(buffer.subarray(pointer, pointer + length));
   file.position += length;
-}
+};
 
-function readSync(file, buffer, pointer, length, seek) {
+const readSync = (file, buffer, pointer, length, seek) => {
   if (pointer === undefined) pointer = 0;
   if (length === undefined) length = buffer.length - pointer;
 
@@ -173,43 +191,41 @@ function readSync(file, buffer, pointer, length, seek) {
   buffer.subarray(pointer).set(file.content.subarray(seek, seek + length));
 
   return length;
-}
+};
 
-function writeToConsole(x) {
+const writeToConsole = (x) => {
   if (!showConsole) return;
   consoleBuffer += x;
   if (consoleBuffer.indexOf('\n') >= 0) {
-    let lines = consoleBuffer.split('\n');
+    const lines = consoleBuffer.split('\n');
     consoleBuffer = lines.pop();
-    for (let line of lines) {
-      // PATCHED:
-      // if (line.length) postMessage(line);
-      if (line.length) console.log(line);
+    for (const line of lines) {
+      if (line.length) postMessage(line);
     }
   }
-}
+};
 
-export function setShowConsole() {
+export const setShowConsole = () => {
   showConsole = true;
-}
+};
 
 // setup
 
-export function setMemory(m) {
+export const setMemory = (m) => {
   memory = m;
   view = new Int32Array(m);
-}
+};
 
-export function setInput(input, cb) {
+export const setInput = (input, cb) => {
   inputBuffer = input;
   if (cb) callback = cb;
-}
+};
 
-export function setFileLoader(c) {
+export const setFileLoader = (c) => {
   fileLoader = c;
-}
+};
 
-export async function executeAsync(_wasmExports) {
+export const executeAsync = async (_wasmExports) => {
   wasmExports = _wasmExports;
 
   finished = deferredPromise();
@@ -218,34 +234,33 @@ export async function executeAsync(_wasmExports) {
   wasmExports.asyncify_stop_unwind();
 
   return finished;
-}
+};
 
 // provide time back to tex
-
-export function getCurrentMinutes() {
-  var d = new Date();
+export const getCurrentMinutes = () => {
+  const d = new Date();
   return 60 * d.getHours() + d.getMinutes();
-}
+};
 
-export function getCurrentDay() {
+export const getCurrentDay = () => {
   return new Date().getDate();
-}
+};
 
-export function getCurrentMonth() {
+export const getCurrentMonth = () => {
   return new Date().getMonth() + 1;
-}
+};
 
-export function getCurrentYear() {
+export const getCurrentYear = () => {
   return new Date().getFullYear();
-}
+};
 
 // print
 
-export function printString(descriptor, x) {
-  var file = descriptor < 0 ? { stdout: true } : files[descriptor];
-  var length = new Uint8Array(memory, x, 1)[0];
-  var buffer = new Uint8Array(memory, x + 1, length);
-  var string = String.fromCharCode.apply(null, buffer);
+export const printString = (descriptor, x) => {
+  const file = descriptor < 0 ? { stdout: true } : files[descriptor];
+  const length = new Uint8Array(memory, x, 1)[0];
+  const buffer = new Uint8Array(memory, x + 1, length);
+  const string = String.fromCharCode.apply(null, buffer);
 
   if (file.stdout) {
     writeToConsole(string);
@@ -253,12 +268,11 @@ export function printString(descriptor, x) {
   }
 
   writeSync(file, Buffer.from(string));
-}
+};
 
-export function printBoolean(descriptor, x) {
-  var file = descriptor < 0 ? { stdout: true } : files[descriptor];
-
-  var result = x ? 'TRUE' : 'FALSE';
+export const printBoolean = (descriptor, x) => {
+  const file = descriptor < 0 ? { stdout: true } : files[descriptor];
+  const result = x ? 'TRUE' : 'FALSE';
 
   if (file.stdout) {
     writeToConsole(result);
@@ -266,41 +280,41 @@ export function printBoolean(descriptor, x) {
   }
 
   writeSync(file, Buffer.from(result));
-}
-export function printChar(descriptor, x) {
-  var file = descriptor < 0 ? { stdout: true } : files[descriptor];
+};
+export const printChar = (descriptor, x) => {
+  const file = descriptor < 0 ? { stdout: true } : files[descriptor];
   if (file.stdout) {
     writeToConsole(String.fromCharCode(x));
     return;
   }
 
-  var b = Buffer.alloc(1);
+  const b = Buffer.alloc(1);
   b[0] = x;
   writeSync(file, b);
-}
+};
 
-export function printInteger(descriptor, x) {
-  var file = descriptor < 0 ? { stdout: true } : files[descriptor];
+export const printInteger = (descriptor, x) => {
+  const file = descriptor < 0 ? { stdout: true } : files[descriptor];
   if (file.stdout) {
     writeToConsole(x.toString());
     return;
   }
 
   writeSync(file, Buffer.from(x.toString()));
-}
+};
 
-export function printFloat(descriptor, x) {
-  var file = descriptor < 0 ? { stdout: true } : files[descriptor];
+export const printFloat = (descriptor, x) => {
+  const file = descriptor < 0 ? { stdout: true } : files[descriptor];
   if (file.stdout) {
     writeToConsole(x.toString());
     return;
   }
 
   writeSync(file, Buffer.from(x.toString()));
-}
+};
 
-export function printNewline(descriptor, x) {
-  var file = descriptor < 0 ? { stdout: true } : files[descriptor];
+export const printNewline = (descriptor, _x) => {
+  const file = descriptor < 0 ? { stdout: true } : files[descriptor];
 
   if (file.stdout) {
     writeToConsole('\n');
@@ -308,11 +322,11 @@ export function printNewline(descriptor, x) {
   }
 
   writeSync(file, Buffer.from('\n'));
-}
+};
 
-export function reset(length, pointer) {
-  var buffer = new Uint8Array(memory, pointer, length);
-  var filename = String.fromCharCode.apply(null, buffer);
+export const reset = (length, pointer) => {
+  const buffer = new Uint8Array(memory, pointer, length);
+  let filename = String.fromCharCode.apply(null, buffer);
 
   filename = filename.replace(/\000+$/g, '');
 
@@ -346,11 +360,11 @@ export function reset(length, pointer) {
   }
 
   return openSync(filename, 'r');
-}
+};
 
-export function rewrite(length, pointer) {
-  var buffer = new Uint8Array(memory, pointer, length);
-  var filename = String.fromCharCode.apply(null, buffer);
+export const rewrite = (length, pointer) => {
+  const buffer = new Uint8Array(memory, pointer, length);
+  let filename = String.fromCharCode.apply(null, buffer);
 
   filename = filename.replace(/ +$/g, '');
 
@@ -369,41 +383,62 @@ export function rewrite(length, pointer) {
   }
 
   return openSync(filename, 'w');
-}
+};
 
-export function close(descriptor) {
-  var file = files[descriptor];
+export const getfilesize = (length, pointer) => {
+  const buffer = new Uint8Array(memory, pointer, length);
+  let filename = String.fromCharCode.apply(null, buffer);
 
+  if (filename.startsWith('{')) {
+    filename = filename.replace(/^{/g, '');
+    filename = filename.replace(/}.*/g, '');
+  }
+
+  filename = filename.replace(/ +$/g, '');
+  filename = filename.replace(/^\*/, '');
+
+  if (filename == 'TeXformats:TEX.POOL') filename = 'tex.pool';
+
+  if (openSync(filename, 'r') !== -1) return filesystem[filename]?.length ?? 0;
+  return 0;
+};
+
+export const close = (descriptor) => {
+  const file = files[descriptor];
   if (file.descriptor) closeSync(file.descriptor);
-}
+};
 
-export function eof(descriptor) {
-  var file = files[descriptor];
-
+export const eof = (descriptor) => {
+  const file = files[descriptor];
   if (file.eof) return 1;
   else return 0;
-}
+};
 
-export function erstat(descriptor) {
-  var file = files[descriptor];
+export const erstat = (descriptor) => {
+  const file = files[descriptor];
   return file.erstat;
-}
+};
 
-export function eoln(descriptor) {
-  var file = files[descriptor];
-
+export const eoln = (descriptor) => {
+  const file = files[descriptor];
   if (file.eoln) return 1;
   else return 0;
-}
+};
 
-export function inputln(descriptor, bypass_eoln, bufferp, firstp, lastp, max_buf_stackp, buf_size) {
-  var file = files[descriptor];
-  var last_nonblank = 0; // |last| with trailing blanks removed
+export const inputln = (
+  descriptor,
+  bypass_eoln,
+  bufferp,
+  firstp,
+  lastp,
+  _max_buf_stackp,
+  buf_size,
+) => {
+  const file = files[descriptor];
 
-  var buffer = new Uint8Array(memory, bufferp, buf_size);
-  var first = new Uint32Array(memory, firstp, 4);
-  var last = new Uint32Array(memory, lastp, 4);
-  var max_buf_stack = new Uint32Array(memory, max_buf_stackp, 4);
+  const buffer = new Uint8Array(memory, bufferp, buf_size);
+  const first = new Uint32Array(memory, firstp, 4);
+  const last = new Uint32Array(memory, lastp, 4);
 
   // cf. Matthew 19:30
   last[0] = first[0];
@@ -412,6 +447,8 @@ export function inputln(descriptor, bypass_eoln, bufferp, firstp, lastp, max_buf
   if (bypass_eoln && !file.eof && file.eoln) {
     file.position2 = file.position2 + 1;
   }
+
+  if (file.eof) return false;
 
   let endOfLine = file.content.indexOf(10, file.position2);
   if (endOfLine < 0) endOfLine = file.content.length;
@@ -436,12 +473,11 @@ export function inputln(descriptor, bypass_eoln, bufferp, firstp, lastp, max_buf
   }
 
   return true;
-}
+};
 
-export function get(descriptor, pointer, length) {
-  var file = files[descriptor];
-
-  var buffer = new Uint8Array(memory);
+export const get = (descriptor, pointer, length) => {
+  const file = files[descriptor];
+  const buffer = new Uint8Array(memory);
 
   if (file.stdin) {
     if (file.position >= inputBuffer.length) {
@@ -470,17 +506,15 @@ export function get(descriptor, pointer, length) {
   if (buffer[pointer] == 13) file.eoln = true;
 
   file.position = file.position + length;
-}
+};
 
-export function put(descriptor, pointer, length) {
-  var file = files[descriptor];
-
-  var buffer = new Uint8Array(memory);
-
+export const put = (descriptor, pointer, length) => {
+  const file = files[descriptor];
+  const buffer = new Uint8Array(memory);
   writeSync(file, buffer, pointer, length);
-}
+};
 
-export function tex_final_end() {
+export const tex_final_end = () => {
   if (consoleBuffer.length) writeToConsole('\n');
   if (finished) finished.resolve();
-}
+};

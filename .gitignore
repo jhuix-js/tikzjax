@@ -66,4 +66,7 @@ bundle
 # Custom files
 tikzjax
 package-lock.json
+gen/*
+!gen/tex_files.json
 demo/output
+1100/
